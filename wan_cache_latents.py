@@ -2,34 +2,42 @@
 
 import argparse
 import os
-# import glob # No parece usarse directamente, pero podría ser usado por cache_latents.encode_datasets
-from typing import Optional, Union # Union no se usa, pero Optional sí
+# import glob # No parece usarse directamente, pero podrï¿½a ser usado por cache_latents.encode_datasets
+from typing import Optional, Union # Union no se usa, pero Optional sï¿½
 # import argparse # Ya importado arriba
 import numpy as np
 import torch
-# from tqdm import tqdm # Será manejado por cache_latents.encode_datasets o ProgressBar de ComfyUI
-from .dataset import config_utils as cfgutils 
-from .dataset.config_utils import BlueprintGenerator, ConfigSanitizer # Corregido: dataset -> .dataset
-from .dataset.image_video_dataset import ItemInfo, save_latent_cache_wan, ARCHITECTURE_WAN # Corregido: dataset -> .dataset
-# from PIL import Image # Solo para el debug comentado
-
 import logging
-# Corregido: dataset -> .dataset
-from .train_utils.model_utils import str_to_dtype # Asumiendo que model_utils está en dataset/utils/
-from .wan.configs import wan_i2v_14B # Para defaults de clip
-from .wan.modules.vae import WanVAE
-from .wan.modules.clip import CLIPModel
-from . import cache_latents as base_cache_latents_script # Renombrar para claridad
+
+# Try relative imports first, fall back to absolute imports
+try:
+    from .dataset import config_utils as cfgutils
+    from .dataset.config_utils import BlueprintGenerator, ConfigSanitizer
+    from .dataset.image_video_dataset import ItemInfo, save_latent_cache_wan, ARCHITECTURE_WAN
+    from .train_utils.model_utils import str_to_dtype
+    from .wan.configs import wan_i2v_14B
+    from .wan.modules.vae import WanVAE
+    from .wan.modules.clip import CLIPModel
+    from . import cache_latents as base_cache_latents_script
+except ImportError:
+    from dataset import config_utils as cfgutils
+    from dataset.config_utils import BlueprintGenerator, ConfigSanitizer
+    from dataset.image_video_dataset import ItemInfo, save_latent_cache_wan, ARCHITECTURE_WAN
+    from train_utils.model_utils import str_to_dtype
+    from wan.configs import wan_i2v_14B
+    from wan.modules.vae import WanVAE
+    from wan.modules.clip import CLIPModel
+    import cache_latents as base_cache_latents_script
 
 logger = logging.getLogger(__name__)
 # Configurar logging una sola vez, preferiblemente en __init__.py de tu paquete
-if not logger.hasHandlers(): # Evitar múltiples handlers si el script se recarga
+if not logger.hasHandlers(): # Evitar mï¿½ltiples handlers si el script se recarga
     logging.basicConfig(level=logging.INFO, format='[%(levelname)s %(name)s] %(message)s')
 
 
 def encode_and_save_batch(vae: WanVAE, clip: Optional[CLIPModel], batch: list[ItemInfo]):
-    # ... (tu lógica de encode_and_save_batch SIN CAMBIOS) ...
-    # (Solo asegúrate de que ItemInfo esté correctamente disponible si la type hint es estricta)
+    # ... (tu lï¿½gica de encode_and_save_batch SIN CAMBIOS) ...
+    # (Solo asegï¿½rate de que ItemInfo estï¿½ correctamente disponible si la type hint es estricta)
     contents = torch.stack([torch.from_numpy(item.content) for item in batch])
     if len(contents.shape) == 4:
         contents = contents.unsqueeze(1)  # B, H, W, C -> B, F, H, W, C
@@ -97,7 +105,7 @@ def encode_and_save_batch(vae: WanVAE, clip: Optional[CLIPModel], batch: list[It
         save_latent_cache_wan(item, l, cctx, y_i, control_latent_i)
 
 
-# --- ÚNICA FUNCIÓN MAIN ---
+# --- ï¿½NICA FUNCIï¿½N MAIN ---
 def main(args_ns: argparse.Namespace): # Renombrar a args_ns para consistencia con el nodo
     node_name_print = "[wan_cache_latents.main]" # Para logs
     logger.info(f"{node_name_print} Executed with args: {vars(args_ns)}")
@@ -116,15 +124,15 @@ def main(args_ns: argparse.Namespace): # Renombrar a args_ns para consistencia c
     datasets = train_dataset_group.datasets
     logger.info(f"{node_name_print} Loaded {len(datasets)} datasets.")
 
-    # Esta sección de debug_mode parece útil, la mantenemos.
+    # Esta secciï¿½n de debug_mode parece ï¿½til, la mantenemos.
     # args_ns.debug_mode ahora es un string "None" o un string con el modo.
-    # cache_latents.show_datasets necesitaría manejar "None" como no activar el modo debug.
-    # O podríamos hacer:
+    # cache_latents.show_datasets necesitarï¿½a manejar "None" como no activar el modo debug.
+    # O podrï¿½amos hacer:
     # actual_debug_mode = args_ns.debug_mode if args_ns.debug_mode != "None" else None
     # if actual_debug_mode is not None:
     if args_ns.debug_mode != "None": # Asumimos que "None" (string) significa no debug
         logger.info(f"{node_name_print} Debug mode active: {args_ns.debug_mode}. Showing datasets and exiting.")
-        # Asegúrate de que base_cache_latents_script.show_datasets es la función correcta
+        # Asegï¿½rate de que base_cache_latents_script.show_datasets es la funciï¿½n correcta
         base_cache_latents_script.show_datasets(
             datasets, 
             args_ns.debug_mode, # El modo real
@@ -135,7 +143,7 @@ def main(args_ns: argparse.Namespace): # Renombrar a args_ns para consistencia c
         )
         return # Terminar si estamos en modo debug de mostrar datasets
 
-    if not hasattr(args_ns, 'vae') or args_ns.vae is None or args_ns.vae == "None": # "None" string por nuestra corrección
+    if not hasattr(args_ns, 'vae') or args_ns.vae is None or args_ns.vae == "None": # "None" string por nuestra correcciï¿½n
         logger.error(f"{node_name_print} VAE checkpoint path (args.vae) is required but not provided or is 'None'.")
         raise ValueError("VAE checkpoint is required.")
     
@@ -145,38 +153,38 @@ def main(args_ns: argparse.Namespace): # Renombrar a args_ns para consistencia c
     vae_dtype = str_to_dtype(vae_dtype_str) # Convertir string a torch.dtype
     
     vae_cache_cpu_flag = args_ns.vae_cache_cpu if hasattr(args_ns, 'vae_cache_cpu') else False
-    cache_device_for_vae = torch.device("cpu") if vae_cache_cpu_flag else None # Ajuste aquí
+    cache_device_for_vae = torch.device("cpu") if vae_cache_cpu_flag else None # Ajuste aquï¿½
     
     vae = WanVAE(vae_path=vae_path, device=device, dtype=vae_dtype, cache_device=cache_device_for_vae)
     logger.info(f"{node_name_print} VAE loaded successfully.")
 
-    clip_model_instance = None # Renombrar para evitar confusión con el módulo CLIPModel
+    clip_model_instance = None # Renombrar para evitar confusiï¿½n con el mï¿½dulo CLIPModel
     # args_ns.clip ahora es un string "None" o una ruta
     if hasattr(args_ns, 'clip') and args_ns.clip is not None and args_ns.clip != "None":
         logger.info(f"{node_name_print} Loading CLIP model from {args_ns.clip}")
-        # Asegúrate de que wan_i2v_14B.i2v_14B está disponible y tiene "clip_dtype"
-        clip_dtype_config = wan_i2v_14B.i2v_14B.get("clip_dtype", torch.float16) # Default si no está
+        # Asegï¿½rate de que wan_i2v_14B.i2v_14B estï¿½ disponible y tiene "clip_dtype"
+        clip_dtype_config = wan_i2v_14B.i2v_14B.get("clip_dtype", torch.float16) # Default si no estï¿½
         clip_model_instance = CLIPModel(dtype=clip_dtype_config, device=device, weight_path=args_ns.clip)
         logger.info(f"{node_name_print} CLIP model loaded successfully.")
     else:
         logger.info(f"{node_name_print} No CLIP model path provided or path is 'None'. Skipping CLIP loading.")
 
 
-    # Define la función de codificación que se pasará al script base
+    # Define la funciï¿½n de codificaciï¿½n que se pasarï¿½ al script base
     def encode_batch_for_base_script(one_batch: list[ItemInfo]):
-        # Llama a tu función local encode_and_save_batch
+        # Llama a tu funciï¿½n local encode_and_save_batch
         encode_and_save_batch(vae, clip_model_instance, one_batch)
 
     logger.info(f"{node_name_print} Starting dataset encoding process using base script...")
-    # Llama a la función encode_datasets del script base
-    # Asegúrate de que base_cache_latents_script está correctamente importado
+    # Llama a la funciï¿½n encode_datasets del script base
+    # Asegï¿½rate de que base_cache_latents_script estï¿½ correctamente importado
     # y que args_ns contiene 'comfy_pbar' si base_cache_latents_script.encode_datasets lo espera.
     base_cache_latents_script.encode_datasets(datasets, encode_batch_for_base_script, args_ns)
     
     logger.info(f"{node_name_print} Latent caching process complete.")
 
 
-# --- Parser setup (solo para ejecución standalone, no usado por ComfyUI directamente) ---
+# --- Parser setup (solo para ejecuciï¿½n standalone, no usado por ComfyUI directamente) ---
 def wan_setup_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     if parser is None:
         parser = argparse.ArgumentParser(description="WAN Latent Caching Specific Arguments")
@@ -186,14 +194,14 @@ def wan_setup_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser
     return parser
 
 # Este bloque if __name__ == "__main__": es solo para ejecutar el script de forma independiente.
-# ComfyUI llamará a la función main(args_ns) directamente.
+# ComfyUI llamarï¿½ a la funciï¿½n main(args_ns) directamente.
 if __name__ == "__main__":
-    # Para la ejecución standalone, necesitamos un parser base común.
+    # Para la ejecuciï¿½n standalone, necesitamos un parser base comï¿½n.
     # Asumimos que base_cache_latents_script.setup_parser_common() existe.
     if hasattr(base_cache_latents_script, 'setup_parser_common'):
         standalone_parser = base_cache_latents_script.setup_parser_common()
-        standalone_parser = wan_setup_parser(standalone_parser) # Añadir args específicos de WAN
+        standalone_parser = wan_setup_parser(standalone_parser) # Aï¿½adir args especï¿½ficos de WAN
         parsed_args = standalone_parser.parse_args()
-        main(parsed_args) # Llamar a la función main unificada
+        main(parsed_args) # Llamar a la funciï¿½n main unificada
     else:
         print("Error: base_cache_latents_script.setup_parser_common not found. Cannot run standalone.")

@@ -6,17 +6,22 @@ from typing import Optional, Union
 import numpy as np
 import torch
 from tqdm import tqdm
-
-
-from .dataset.config_utils import BlueprintGenerator, ConfigSanitizer # type: ignore
-from .dataset.image_video_dataset import BaseDataset, ItemInfo, save_latent_cache, ARCHITECTURE_HUNYUAN_VIDEO # type: ignore
 from PIL import Image
 import logging
 
-
-from .hunyuan_model.vae import load_vae
-from .hunyuan_model.autoencoder_kl_causal_3d import AutoencoderKLCausal3D
-from .train_utils.model_utils import str_to_dtype
+# Try relative imports first, fall back to absolute imports
+try:
+    from .dataset.config_utils import BlueprintGenerator, ConfigSanitizer # type: ignore
+    from .dataset.image_video_dataset import BaseDataset, ItemInfo, save_latent_cache, ARCHITECTURE_HUNYUAN_VIDEO # type: ignore
+    from .hunyuan_model.vae import load_vae
+    from .hunyuan_model.autoencoder_kl_causal_3d import AutoencoderKLCausal3D
+    from .train_utils.model_utils import str_to_dtype
+except ImportError:
+    from dataset.config_utils import BlueprintGenerator, ConfigSanitizer # type: ignore
+    from dataset.image_video_dataset import BaseDataset, ItemInfo, save_latent_cache, ARCHITECTURE_HUNYUAN_VIDEO # type: ignore
+    from hunyuan_model.vae import load_vae
+    from hunyuan_model.autoencoder_kl_causal_3d import AutoencoderKLCausal3D
+    from train_utils.model_utils import str_to_dtype
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -218,19 +223,19 @@ def encode_and_save_batch(vae: AutoencoderKLCausal3D, batch: list[ItemInfo]):
 
 logger = logging.getLogger(__name__) # Configura tu logger
 
-def encode_datasets(datasets: list, encode: callable, args: object): # 'list' en lugar de list[BaseDataset] para evitar NameError si BaseDataset no está definido aquí
+def encode_datasets(datasets: list, encode: callable, args: object): # 'list' en lugar de list[BaseDataset] para evitar NameError si BaseDataset no estï¿½ definido aquï¿½
     node_name_print = "[encode_datasets function]" # Para identificar los prints
     
-    # Determinar el número de workers
+    # Determinar el nï¿½mero de workers
     num_workers = args.num_workers if args.num_workers is not None else max(1, os.cpu_count() - 1 if os.cpu_count() else 1)
     
-    # Usar la barra de progreso de ComfyUI si se proporcionó
+    # Usar la barra de progreso de ComfyUI si se proporcionï¿½
     use_comfy_pbar = hasattr(args, 'comfy_pbar') and args.comfy_pbar is not None
     
     if use_comfy_pbar:
         print(f"{node_name_print} Using ComfyUI ProgressBar.")
-        # El ProgressBar ya debería estar inicializado en el nodo con el total de items/batches.
-        # Aquí solo lo actualizaremos.
+        # El ProgressBar ya deberï¿½a estar inicializado en el nodo con el total de items/batches.
+        # Aquï¿½ solo lo actualizaremos.
     else:
         print(f"{node_name_print} ComfyUI ProgressBar not found in args. TQDM will be used if available (o no progress bar).")
         # Si tqdm estuviera disponible y quisieras usarlo como fallback:
@@ -242,18 +247,18 @@ def encode_datasets(datasets: list, encode: callable, args: object): # 'list' en
         logger.info(f"Encoding dataset [{i}] ({type(dataset).__name__})")
         all_latent_cache_paths_for_current_dataset = [] # Renombrado para claridad
 
-        # El método dataset.retrieve_latent_cache_batches() es un generador.
-        # Para usarlo con comfy_pbar, necesitamos saber cuántos batches va a generar
-        # ANTES de iterar, o actualizar el pbar después de cada batch.
+        # El mï¿½todo dataset.retrieve_latent_cache_batches() es un generador.
+        # Para usarlo con comfy_pbar, necesitamos saber cuï¿½ntos batches va a generar
+        # ANTES de iterar, o actualizar el pbar despuï¿½s de cada batch.
         # Si no podemos saber el total de batches de antemano para este dataset,
-        # el pbar que inicializamos en el nodo (con un total general) se actualizará por cada batch global.
+        # el pbar que inicializamos en el nodo (con un total general) se actualizarï¿½ por cada batch global.
 
         # Iteramos sobre los batches que devuelve el generador del dataset
-        # No usamos tqdm aquí si tenemos comfy_pbar
+        # No usamos tqdm aquï¿½ si tenemos comfy_pbar
         
-        # Si NO puedes obtener el total de batches por adelantado para este dataset específico,
+        # Si NO puedes obtener el total de batches por adelantado para este dataset especï¿½fico,
         # simplemente actualiza el pbar global por cada batch que proceses.
-        # El 'total' del pbar global se habrá establecido en el nodo.
+        # El 'total' del pbar global se habrï¿½ establecido en el nodo.
         
         batch_iterator = dataset.retrieve_latent_cache_batches(num_workers)
         
@@ -261,8 +266,8 @@ def encode_datasets(datasets: list, encode: callable, args: object): # 'list' en
         # if not use_comfy_pbar and 'tqdm' in globals():
         #    batch_iterator = tqdm(batch_iterator, desc=f"Dataset {i} batches")
             
-        for _, batch in batch_iterator: # El primer elemento del tuple es la key del bucket, no lo usamos aquí
-            if not batch: # Si el batch está vacío
+        for _, batch in batch_iterator: # El primer elemento del tuple es la key del bucket, no lo usamos aquï¿½
+            if not batch: # Si el batch estï¿½ vacï¿½o
                 continue
 
             all_latent_cache_paths_for_current_dataset.extend([item.latent_cache_path for item in batch])
@@ -272,10 +277,10 @@ def encode_datasets(datasets: list, encode: callable, args: object): # 'list' en
                 filtered_batch_items = [item for item in current_batch_to_process if not os.path.exists(item.latent_cache_path)]
                 if not filtered_batch_items:
                     if use_comfy_pbar:
-                        # Aunque saltemos, si contamos items para el pbar, podríamos querer ajustar.
-                        # O si contamos batches, actualizamos que un batch se "procesó" (saltó).
-                        # Si el pbar se inicializó con el número TOTAL de items, y aquí saltamos
-                        # un batch completo, debemos actualizar el pbar por el número de items saltados.
+                        # Aunque saltemos, si contamos items para el pbar, podrï¿½amos querer ajustar.
+                        # O si contamos batches, actualizamos que un batch se "procesï¿½" (saltï¿½).
+                        # Si el pbar se inicializï¿½ con el nï¿½mero TOTAL de items, y aquï¿½ saltamos
+                        # un batch completo, debemos actualizar el pbar por el nï¿½mero de items saltados.
                         # args.comfy_pbar.update(len(current_batch_to_process)) # Ejemplo si cuentas items
                         pass # Por ahora, no actualizamos el pbar si se salta todo el batch
                     total_batches_processed_for_pbar += 1
@@ -284,23 +289,23 @@ def encode_datasets(datasets: list, encode: callable, args: object): # 'list' en
                     continue
                 current_batch_to_process = filtered_batch_items
 
-            # Determinar el tamaño de sub-batch para la función 'encode'
-            # Tu script original lo llama 'bs', lo llamaré 'sub_batch_size' para claridad
+            # Determinar el tamaï¿½o de sub-batch para la funciï¿½n 'encode'
+            # Tu script original lo llama 'bs', lo llamarï¿½ 'sub_batch_size' para claridad
             sub_batch_size = args.batch_size if args.batch_size is not None else len(current_batch_to_process)
             
             for j in range(0, len(current_batch_to_process), sub_batch_size):
                 sub_batch = current_batch_to_process[j : j + sub_batch_size]
-                if not sub_batch: # Si el sub_batch está vacío
+                if not sub_batch: # Si el sub_batch estï¿½ vacï¿½o
                     continue
                 print(f"{node_name_print} Encoding sub-batch of size {len(sub_batch)} for dataset {i}")
-                encode(sub_batch) # Llama a la función de encode que se le pasó
+                encode(sub_batch) # Llama a la funciï¿½n de encode que se le pasï¿½
 
-            # Actualizar la barra de progreso de ComfyUI DESPUÉS de procesar un batch del dataset
+            # Actualizar la barra de progreso de ComfyUI DESPUï¿½S de procesar un batch del dataset
             total_batches_processed_for_pbar += 1
             if use_comfy_pbar:
                 args.comfy_pbar.update(1) # Asumiendo que el pbar cuenta batches
 
-        # --- Lógica de limpieza de caché (después de procesar todos los batches de un dataset) ---
+        # --- Lï¿½gica de limpieza de cachï¿½ (despuï¿½s de procesar todos los batches de un dataset) ---
         all_latent_cache_paths_for_current_dataset = [os.path.normpath(p) for p in all_latent_cache_paths_for_current_dataset]
         all_latent_cache_paths_for_current_dataset = set(all_latent_cache_paths_for_current_dataset)
 
@@ -372,7 +377,7 @@ def setup_parser_common(parser: argparse.ArgumentParser = None) -> argparse.Argu
         print("[cache_latents.py setup_parser_common] No parser provided, creating new one.")
         parser = argparse.ArgumentParser(description="Common Latent Caching Arguments", add_help=False) 
         # add_help=False si el parser principal (el que lo llama primero) ya tiene la ayuda general.
-        # O puedes dejar que cada uno añada su ayuda y luego el principal usa parents.
+        # O puedes dejar que cada uno aï¿½ada su ayuda y luego el principal usa parents.
 
     # ---- Common arguments ----
     parser.add_argument(
@@ -411,7 +416,7 @@ def setup_parser_common(parser: argparse.ArgumentParser = None) -> argparse.Argu
     parser.add_argument(
         "--console_num_images", type=int, default=None, help="debug mode: num images to show"
     )
-    # ... (AÑADE TODOS tus argumentos comunes aquí como estaban en tu script original) ...
+    # ... (Aï¿½ADE TODOS tus argumentos comunes aquï¿½ como estaban en tu script original) ...
     
     print(f"[cache_latents.py setup_parser_common] Arguments added/updated in parser: {id(parser)}")
     return parser

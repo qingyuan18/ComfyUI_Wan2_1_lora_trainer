@@ -35,18 +35,32 @@ from diffusers.optimization import (
 )
 from transformers.optimization import SchedulerType, TYPE_TO_SCHEDULER_FUNCTION
 
-from .modules.scheduling_flow_match_discrete import FlowMatchDiscreteScheduler
-from .networks import lora as lora_module
-
-from .dataset import config_utils
-from .hunyuan_model.models import load_transformer, get_rotary_pos_embed_by_shape, HYVideoDiffusionTransformer
-from .hunyuan_model import text_encoder as text_encoder_module
-from .hunyuan_model.vae import load_vae, VAE_VER
-from .hunyuan_model import vae as vae_module
-from .dataset.config_utils import BlueprintGenerator, ConfigSanitizer
-from .dataset.image_video_dataset import ARCHITECTURE_HUNYUAN_VIDEO, ARCHITECTURE_HUNYUAN_VIDEO_FULL
-from .hv_generate_video import save_images_grid, save_videos_grid, resize_image_to_bucket, encode_to_latents
-from .train_utils import huggingface_utils, model_utils, train_utils, sai_model_spec
+# Try relative imports first, fall back to absolute imports
+try:
+    from .modules.scheduling_flow_match_discrete import FlowMatchDiscreteScheduler
+    from .networks import lora as lora_module
+    from .dataset import config_utils
+    from .hunyuan_model.models import load_transformer, get_rotary_pos_embed_by_shape, HYVideoDiffusionTransformer
+    from .hunyuan_model import text_encoder as text_encoder_module
+    from .hunyuan_model.vae import load_vae, VAE_VER
+    from .hunyuan_model import vae as vae_module
+    from .dataset.config_utils import BlueprintGenerator, ConfigSanitizer
+    from .dataset.image_video_dataset import ARCHITECTURE_HUNYUAN_VIDEO, ARCHITECTURE_HUNYUAN_VIDEO_FULL
+    from .hv_generate_video import save_images_grid, save_videos_grid, resize_image_to_bucket, encode_to_latents
+    from .train_utils import huggingface_utils, model_utils, train_utils, sai_model_spec
+except ImportError:
+    # Fall back to absolute imports
+    from modules.scheduling_flow_match_discrete import FlowMatchDiscreteScheduler
+    from networks import lora as lora_module
+    from dataset import config_utils
+    from hunyuan_model.models import load_transformer, get_rotary_pos_embed_by_shape, HYVideoDiffusionTransformer
+    from hunyuan_model import text_encoder as text_encoder_module
+    from hunyuan_model.vae import load_vae, VAE_VER
+    from hunyuan_model import vae as vae_module
+    from dataset.config_utils import BlueprintGenerator, ConfigSanitizer
+    from dataset.image_video_dataset import ARCHITECTURE_HUNYUAN_VIDEO, ARCHITECTURE_HUNYUAN_VIDEO_FULL
+    from hv_generate_video import save_images_grid, save_videos_grid, resize_image_to_bucket, encode_to_latents
+    from train_utils import huggingface_utils, model_utils, train_utils, sai_model_spec
 
 import logging
 

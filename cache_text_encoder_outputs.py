@@ -8,26 +8,34 @@ from typing import Optional, Union, List, Set # Explicit List and Set for type h
 import torch
 # from tqdm import tqdm # Will be replaced or made conditional
 
-# --- Corrected Relative Imports ---
-from .dataset import config_utils # For load_user_config
-from .dataset.config_utils import BlueprintGenerator, ConfigSanitizer
-from .dataset.image_video_dataset import ARCHITECTURE_HUNYUAN_VIDEO, BaseDataset, ItemInfo, save_text_encoder_output_cache
-
-# For Hunyuan specific text encoder parts, if this script is also used for Hunyuan
-# These imports will ONLY work if 'hunyuan_model' is a sub-package of 'musubi-tuner'
-# OR if 'hunyuan_model' itself is added to sys.path.
-# For now, I'll assume they are relative if you intend to use this script for Hunyuan via MusubiTuner.
-# If this script is *only* a base for WAN, then these Hunyuan parts might not be needed by WAN.
-try:
-    from .hunyuan_model import text_encoder as text_encoder_module 
-    from .hunyuan_model.text_encoder import TextEncoder
-except ImportError:
-    print("[cache_text_encoder_outputs.py] Warning: Could not import Hunyuan text encoder modules. This is fine if only used for WAN.")
-    TextEncoder = None # Placeholder if not found
-    text_encoder_module = None
-
 import accelerate
 import logging
+
+# Try relative imports first, fall back to absolute imports
+try:
+    from .dataset import config_utils # For load_user_config
+    from .dataset.config_utils import BlueprintGenerator, ConfigSanitizer
+    from .dataset.image_video_dataset import ARCHITECTURE_HUNYUAN_VIDEO, BaseDataset, ItemInfo, save_text_encoder_output_cache
+    # For Hunyuan specific text encoder parts
+    try:
+        from .hunyuan_model import text_encoder as text_encoder_module
+        from .hunyuan_model.text_encoder import TextEncoder
+    except ImportError:
+        print("[cache_text_encoder_outputs.py] Warning: Could not import Hunyuan text encoder modules. This is fine if only used for WAN.")
+        TextEncoder = None # Placeholder if not found
+        text_encoder_module = None
+except ImportError:
+    from dataset import config_utils
+    from dataset.config_utils import BlueprintGenerator, ConfigSanitizer
+    from dataset.image_video_dataset import ARCHITECTURE_HUNYUAN_VIDEO, BaseDataset, ItemInfo, save_text_encoder_output_cache
+    # For Hunyuan specific text encoder parts
+    try:
+        from hunyuan_model import text_encoder as text_encoder_module
+        from hunyuan_model.text_encoder import TextEncoder
+    except ImportError:
+        print("[cache_text_encoder_outputs.py] Warning: Could not import Hunyuan text encoder modules. This is fine if only used for WAN.")
+        TextEncoder = None # Placeholder if not found
+        text_encoder_module = None
 
 # Assuming model_utils is in your musubi-tuner/utils directory
 # The original import was "from dataset.utils.model_utils import str_to_dtype"

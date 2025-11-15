@@ -43,82 +43,48 @@ except Exception:
     _pkg_name = None
 
 try:
-    # Prefer importing as a real package module: <pkg>.wan_train_network
+    # Try relative import first (when loaded as a ComfyUI custom node)
     try:
-        wtn = importlib.import_module(f"{_pkg_name}.wan_train_network") if _pkg_name else None
-    except Exception:
-        wtn = None
-    if wtn is None:
-        try:
-            from . import wan_train_network as wtn
-        except Exception:
-            import wan_train_network as wtn
+        from . import wan_train_network as wtn
+    except ImportError:
+        # Fall back to absolute import
+        import wan_train_network as wtn
     user_lib_wan_train_network = wtn
 
     try:
-        wcl = importlib.import_module(f"{_pkg_name}.wan_cache_latents") if _pkg_name else None
-    except Exception:
-        wcl = None
-    if wcl is None:
-        try:
-            from . import wan_cache_latents as wcl
-        except Exception:
-            import wan_cache_latents as wcl
+        from . import wan_cache_latents as wcl
+    except ImportError:
+        import wan_cache_latents as wcl
     user_lib_wan_cache_latents = wcl
 
     try:
-        cl_base = importlib.import_module(f"{_pkg_name}.cache_latents") if _pkg_name else None
-    except Exception:
-        cl_base = None
-    if cl_base is None:
-        try:
-            from . import cache_latents as cl_base
-        except Exception:
-            import cache_latents as cl_base
+        from . import cache_latents as cl_base
+    except ImportError:
+        import cache_latents as cl_base
     user_lib_cache_latents_base = cl_base
 
     try:
-        wcteo = importlib.import_module(f"{_pkg_name}.wan_cache_text_encoder_outputs") if _pkg_name else None
-    except Exception:
-        wcteo = None
-    if wcteo is None:
-        try:
-            from . import wan_cache_text_encoder_outputs as wcteo
-        except Exception:
-            import wan_cache_text_encoder_outputs as wcteo
+        from . import wan_cache_text_encoder_outputs as wcteo
+    except ImportError:
+        import wan_cache_text_encoder_outputs as wcteo
     user_lib_wan_cache_text_encoder_outputs = wcteo
 
     try:
-        cteo_base = importlib.import_module(f"{_pkg_name}.cache_text_encoder_outputs") if _pkg_name else None
-    except Exception:
-        cteo_base = None
-    if cteo_base is None:
-        try:
-            from . import cache_text_encoder_outputs as cteo_base
-        except Exception:
-            import cache_text_encoder_outputs as cteo_base
+        from . import cache_text_encoder_outputs as cteo_base
+    except ImportError:
+        import cache_text_encoder_outputs as cteo_base
     user_lib_cache_text_encoder_outputs_base = cteo_base
 
     try:
-        wan_configs_module = importlib.import_module(f"{_pkg_name}.wan.configs") if _pkg_name else None
-    except Exception:
-        wan_configs_module = None
-    if wan_configs_module is None:
-        try:
-            from .wan import configs as wan_configs_module
-        except Exception:
-            from wan import configs as wan_configs_module
+        from .wan import configs as wan_configs_module
+    except ImportError:
+        from wan import configs as wan_configs_module
     user_lib_wan_configs = wan_configs_module
 
     try:
-        dcu_module = importlib.import_module(f"{_pkg_name}.dataset.config_utils") if _pkg_name else None
-    except Exception:
-        dcu_module = None
-    if dcu_module is None:
-        try:
-            from .dataset import config_utils as dcu_module
-        except Exception:
-            from dataset import config_utils as dcu_module
+        from .dataset import config_utils as dcu_module
+    except ImportError:
+        from dataset import config_utils as dcu_module
     user_lib_config_utils = dcu_module
 
     try:

@@ -14,23 +14,37 @@ import accelerate
 from diffusers.utils.torch_utils import randn_tensor
 from transformers.models.llama import LlamaModel
 from tqdm import tqdm
-import av 
+import av
 from einops import rearrange
 from safetensors.torch import load_file, save_file
 from safetensors import safe_open
 from PIL import Image
-from .modules.scheduling_flow_match_discrete import FlowMatchDiscreteScheduler
-from .networks import lora
 
-from .hunyuan_model import vae 
-from .hunyuan_model.text_encoder import TextEncoder
-from .hunyuan_model.text_encoder import PROMPT_TEMPLATE
-from .hunyuan_model.vae import load_vae
-from .hunyuan_model.models import load_transformer, get_rotary_pos_embed
-from .hunyuan_model.fp8_optimization import convert_fp8_linear
-from .train_utils.model_utils import str_to_dtype
-from .train_utils.safetensors_utils import mem_eff_save_file
-from .dataset.image_video_dataset import load_video, glob_images, resize_image_to_bucket
+# Try relative imports first, fall back to absolute imports
+try:
+    from .modules.scheduling_flow_match_discrete import FlowMatchDiscreteScheduler
+    from .networks import lora
+    from .hunyuan_model import vae
+    from .hunyuan_model.text_encoder import TextEncoder
+    from .hunyuan_model.text_encoder import PROMPT_TEMPLATE
+    from .hunyuan_model.vae import load_vae
+    from .hunyuan_model.models import load_transformer, get_rotary_pos_embed
+    from .hunyuan_model.fp8_optimization import convert_fp8_linear
+    from .train_utils.model_utils import str_to_dtype
+    from .train_utils.safetensors_utils import mem_eff_save_file
+    from .dataset.image_video_dataset import load_video, glob_images, resize_image_to_bucket
+except ImportError:
+    from modules.scheduling_flow_match_discrete import FlowMatchDiscreteScheduler
+    from networks import lora
+    from hunyuan_model import vae
+    from hunyuan_model.text_encoder import TextEncoder
+    from hunyuan_model.text_encoder import PROMPT_TEMPLATE
+    from hunyuan_model.vae import load_vae
+    from hunyuan_model.models import load_transformer, get_rotary_pos_embed
+    from hunyuan_model.fp8_optimization import convert_fp8_linear
+    from train_utils.model_utils import str_to_dtype
+    from train_utils.safetensors_utils import mem_eff_save_file
+    from dataset.image_video_dataset import load_video, glob_images, resize_image_to_bucket
 
 #utilidad chula a revisar
 try:
