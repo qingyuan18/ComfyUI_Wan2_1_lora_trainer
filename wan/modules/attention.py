@@ -6,14 +6,16 @@ try:
     import flash_attn_interface
 
     FLASH_ATTN_3_AVAILABLE = True
-except ModuleNotFoundError:
+except Exception:
+    # flash_attn_interface may be installed but incompatible with the current PyTorch/CUDA
     FLASH_ATTN_3_AVAILABLE = False
 
 try:
     import flash_attn
 
     FLASH_ATTN_2_AVAILABLE = True
-except ModuleNotFoundError:
+except Exception:
+    # flash_attn may be installed but its CUDA extension can fail to load (undefined symbols, etc.)
     FLASH_ATTN_2_AVAILABLE = False
 
 try:

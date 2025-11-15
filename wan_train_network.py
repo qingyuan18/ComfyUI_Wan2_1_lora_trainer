@@ -8,9 +8,18 @@ import torchvision.transforms.functional as TF
 from tqdm import tqdm
 from accelerate import Accelerator, init_empty_weights
 
-# Try relative imports first (when loaded as part of a package)
-# Fall back to absolute imports if that fails
-try:
+import os
+import sys
+import importlib
+
+_pkg_dir = os.path.dirname(__file__)
+_parent_dir = os.path.dirname(_pkg_dir)
+if _parent_dir not in sys.path:
+    sys.path.insert(0, _parent_dir)
+_pkg_name = os.path.basename(_pkg_dir)
+
+if __package__:
+    # When loaded as part of a package (e.g. ComfyUI package import)
     from . import hv_train_network as hv_common_trainer_script
     from .wan.modules.clip import CLIPModel
     from .wan.modules.model import WanModel, detect_wan_sd_dtype, load_wan_model
@@ -18,27 +27,77 @@ try:
     from .wan.modules.vae import WanVAE
     from .wan.configs import WAN_CONFIGS
     from .wan.utils.fm_solvers_unipc import FlowUniPCMultistepScheduler
-    from .dataset.image_video_dataset import ARCHITECTURE_WAN, ARCHITECTURE_WAN_FULL, load_video
+    from .dataset.image_video_dataset import (
+        ARCHITECTURE_WAN,
+        ARCHITECTURE_WAN_FULL,
+        load_video,
+    )
     from .hv_generate_video import resize_image_to_bucket
-    from .hv_train_network import NetworkTrainer, load_prompts, clean_memory_on_device, setup_parser_common, read_config_from_file
+    from .hv_train_network import (
+        NetworkTrainer,
+        load_prompts,
+        clean_memory_on_device,
+        setup_parser_common,
+        read_config_from_file,
+    )
     from .train_utils import model_utils
-    from .train_utils.safetensors_utils import load_safetensors, MemoryEfficientSafeOpen
-except ImportError:
-    # Fall back to absolute imports when used as a standalone module
-    import hv_train_network as hv_common_trainer_script
-    from wan.modules.clip import CLIPModel
-    from wan.modules.model import WanModel, detect_wan_sd_dtype, load_wan_model
-    from wan.modules.t5 import T5EncoderModel
-    from wan.modules.vae import WanVAE
-    from wan.configs import WAN_CONFIGS
-    from wan.utils.fm_solvers_unipc import FlowUniPCMultistepScheduler
-    from dataset.image_video_dataset import ARCHITECTURE_WAN, ARCHITECTURE_WAN_FULL, load_video
-    from hv_generate_video import resize_image_to_bucket
-    from hv_train_network import NetworkTrainer, load_prompts, clean_memory_on_device, setup_parser_common, read_config_from_file
-    from train_utils import model_utils
-    from train_utils.safetensors_utils import load_safetensors, MemoryEfficientSafeOpen
+    from .train_utils.safetensors_utils import (
+        load_safetensors,
+        MemoryEfficientSafeOpen,
+    )
+else:
+    # When loaded as a standalone module by ComfyUI (no package context)
+    hv_common_trainer_script = importlib.import_module(f"{_pkg_name}.hv_train_network")
 
+    wan_clip = importlib.import_module(f"{_pkg_name}.wan.modules.clip")
+    CLIPModel = wan_clip.CLIPModel
 
+    wan_model_mod = importlib.import_module(f"{_pkg_name}.wan.modules.model")
+    WanModel = wan_model_mod.WanModel
+    detect_wan_sd_dtype = wan_model_mod.detect_wan_sd_dtype
+    load_wan_model = wan_model_mod.load_wan_model
+
+    wan_t5 = importlib.import_module(f"{_pkg_name}.wan.modules.t5")
+    T5EncoderModel = wan_t5.T5EncoderModel
+
+    wan_vae = importlib.import_module(f"{_pkg_name}.wan.modules.vae")
+    WanVAE = wan_vae.WanVAE
+
+    wan_configs_mod = importlib.import_module(f"{_pkg_name}.wan.configs")
+    WAN_CONFIGS = wan_configs_mod.WAN_CONFIGS
+
+    unipc_mod = importlib.import_module(
+        f"{_pkg_name}.wan.utils.fm_solvers_unipc"
+    )
+    FlowUniPCMultistepScheduler = unipc_mod.FlowUniPCMultistepScheduler
+
+    dataset_mod = importlib.import_module(
+        f"{_pkg_name}.dataset.image_video_dataset"
+    )
+    ARCHITECTURE_WAN = dataset_mod.ARCHITECTURE_WAN
+    ARCHITECTURE_WAN_FULL = dataset_mod.ARCHITECTURE_WAN_FULL
+    load_video = dataset_mod.load_video
+
+    hv_generate_video_mod = importlib.import_module(
+        f"{_pkg_name}.hv_generate_video"
+    )
+    resize_image_to_bucket = hv_generate_video_mod.resize_image_to_bucket
+
+    NetworkTrainer = hv_common_trainer_script.NetworkTrainer
+    load_prompts = hv_common_trainer_script.load_prompts
+    clean_memory_on_device = hv_common_trainer_script.clean_memory_on_device
+    setup_parser_common = hv_common_trainer_script.setup_parser_common
+    read_config_from_file = hv_common_trainer_script.read_config_from_file
+
+    model_utils = importlib.import_module(
+        f"{_pkg_name}.train_utils.model_utils"
+    )
+
+    safetensors_utils_mod = importlib.import_module(
+        f"{_pkg_name}.train_utils.safetensors_utils"
+    )
+    load_safetensors = safetensors_utils_mod.load_safetensors
+    MemoryEfficientSafeOpen = safetensors_utils_mod.MemoryEfficientSafeOpen
 
 
 logger = logging.getLogger(__name__)

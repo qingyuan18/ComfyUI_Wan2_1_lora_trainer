@@ -25,7 +25,7 @@ from tqdm import tqdm
 try:
     from .networks import lora_wan
     from .modules.scheduling_flow_match_discrete import FlowMatchDiscreteScheduler
-    from .utils.safetensors_utils import mem_eff_save_file, load_safetensors
+    from .train_utils.safetensors_utils import mem_eff_save_file, load_safetensors
     from .wan.configs import WAN_CONFIGS, SUPPORTED_SIZES
     from .wan.modules.model import WanModel, load_wan_model, detect_wan_sd_dtype
     from .wan.modules.vae import WanVAE
@@ -40,7 +40,7 @@ try:
 except ImportError:
     from networks import lora_wan
     from modules.scheduling_flow_match_discrete import FlowMatchDiscreteScheduler
-    from utils.safetensors_utils import mem_eff_save_file, load_safetensors
+    from train_utils.safetensors_utils import mem_eff_save_file, load_safetensors
     from wan.configs import WAN_CONFIGS, SUPPORTED_SIZES
     from wan.modules.model import WanModel, load_wan_model, detect_wan_sd_dtype
     from wan.modules.vae import WanVAE

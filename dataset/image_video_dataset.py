@@ -15,8 +15,8 @@ from PIL import Image
 import cv2
 import av
 
-from ..train_utils import safetensors_utils
-from ..train_utils.model_utils import dtype_to_str
+from train_utils import safetensors_utils
+from train_utils.model_utils import dtype_to_str
 
 import logging
 
