@@ -12,7 +12,11 @@ import subprocess
 import shutil
 import sys
 import re
-from .musubi_utils import models_combo, vaes_combo, encoders_combo, clip_vision_files
+import importlib
+try:
+    from .musubi_utils import models_combo, vaes_combo, encoders_combo, clip_vision_files
+except Exception:
+    from musubi_utils import models_combo, vaes_combo, encoders_combo, clip_vision_files
 
 
 
@@ -27,36 +31,109 @@ user_lib_architecture_hv = "hv"
 # Import dataset utilities to be used by nodes for batch counting
 user_lib_config_utils = None
 
+# Compatibility: handle package/loader differences robustly
 try:
-    #print("[MusubiTuner Nodes] Attempting to import .wan_cache_latents...")
-    from . import wan_train_network as wtn; user_lib_wan_train_network = wtn
-    #print("[MusubiTuner Nodes] SUCCESS: Imported .wan_train_network")
+    _pkg_dir = os.path.dirname(__file__)
+    _parent_dir = os.path.dirname(_pkg_dir)
+    for _p in (_pkg_dir, _parent_dir):
+        if _p and _p not in sys.path:
+            sys.path.insert(0, _p)
+    _pkg_name = os.path.basename(_pkg_dir)
+except Exception:
+    _pkg_name = None
 
-    from . import wan_cache_latents as wcl; user_lib_wan_cache_latents = wcl
-    #print("[MusubiTuner Nodes] SUCCESS: Imported .wan_cache_latents")
+try:
+    # Prefer importing as a real package module: <pkg>.wan_train_network
+    try:
+        wtn = importlib.import_module(f"{_pkg_name}.wan_train_network") if _pkg_name else None
+    except Exception:
+        wtn = None
+    if wtn is None:
+        try:
+            from . import wan_train_network as wtn
+        except Exception:
+            import wan_train_network as wtn
+    user_lib_wan_train_network = wtn
 
-    #print("[MusubiTuner Nodes] Attempting to import .cache_latents (base)...")
-    from . import cache_latents as cl_base; user_lib_cache_latents_base = cl_base
-    #print("[MusubiTuner Nodes] SUCCESS: Imported .cache_latents (base)")
+    try:
+        wcl = importlib.import_module(f"{_pkg_name}.wan_cache_latents") if _pkg_name else None
+    except Exception:
+        wcl = None
+    if wcl is None:
+        try:
+            from . import wan_cache_latents as wcl
+        except Exception:
+            import wan_cache_latents as wcl
+    user_lib_wan_cache_latents = wcl
 
-    #print("[MusubiTuner Nodes] Attempting to import .wan_cache_text_encoder_outputs...")
-    from . import wan_cache_text_encoder_outputs as wcteo; user_lib_wan_cache_text_encoder_outputs = wcteo
-    #print("[MusubiTuner Nodes] SUCCESS: Imported .wan_cache_text_encoder_outputs")
+    try:
+        cl_base = importlib.import_module(f"{_pkg_name}.cache_latents") if _pkg_name else None
+    except Exception:
+        cl_base = None
+    if cl_base is None:
+        try:
+            from . import cache_latents as cl_base
+        except Exception:
+            import cache_latents as cl_base
+    user_lib_cache_latents_base = cl_base
 
-    #print("[MusubiTuner Nodes] Attempting to import .cache_text_encoder_outputs (base)...")
-    from . import cache_text_encoder_outputs as cteo_base; user_lib_cache_text_encoder_outputs_base = cteo_base
-    #print("[MusubiTuner Nodes] SUCCESS: Imported .cache_text_encoder_outputs (base)")
+    try:
+        wcteo = importlib.import_module(f"{_pkg_name}.wan_cache_text_encoder_outputs") if _pkg_name else None
+    except Exception:
+        wcteo = None
+    if wcteo is None:
+        try:
+            from . import wan_cache_text_encoder_outputs as wcteo
+        except Exception:
+            import wan_cache_text_encoder_outputs as wcteo
+    user_lib_wan_cache_text_encoder_outputs = wcteo
 
-    #print("[MusubiTuner Nodes] Attempting to import .wan.configs...")
-    from .wan import configs as wan_configs_module; user_lib_wan_configs = wan_configs_module
-    #print("[MusubiTuner Nodes] SUCCESS: Imported .wan.configs.")
+    try:
+        cteo_base = importlib.import_module(f"{_pkg_name}.cache_text_encoder_outputs") if _pkg_name else None
+    except Exception:
+        cteo_base = None
+    if cteo_base is None:
+        try:
+            from . import cache_text_encoder_outputs as cteo_base
+        except Exception:
+            import cache_text_encoder_outputs as cteo_base
+    user_lib_cache_text_encoder_outputs_base = cteo_base
 
-    #print("[MusubiTuner Nodes] Attempting to import dataset utilities...")
-    from .dataset import config_utils as dcu_module; user_lib_config_utils = dcu_module
-    from .dataset.image_video_dataset import ARCHITECTURE_WAN, ARCHITECTURE_HUNYUAN_VIDEO
+    try:
+        wan_configs_module = importlib.import_module(f"{_pkg_name}.wan.configs") if _pkg_name else None
+    except Exception:
+        wan_configs_module = None
+    if wan_configs_module is None:
+        try:
+            from .wan import configs as wan_configs_module
+        except Exception:
+            from wan import configs as wan_configs_module
+    user_lib_wan_configs = wan_configs_module
+
+    try:
+        dcu_module = importlib.import_module(f"{_pkg_name}.dataset.config_utils") if _pkg_name else None
+    except Exception:
+        dcu_module = None
+    if dcu_module is None:
+        try:
+            from .dataset import config_utils as dcu_module
+        except Exception:
+            from dataset import config_utils as dcu_module
+    user_lib_config_utils = dcu_module
+
+    try:
+        arch_mod = importlib.import_module(f"{_pkg_name}.dataset.image_video_dataset") if _pkg_name else None
+    except Exception:
+        arch_mod = None
+    if arch_mod is None:
+        try:
+            from .dataset import image_video_dataset as arch_mod
+        except Exception:
+            import dataset.image_video_dataset as arch_mod
+    ARCHITECTURE_WAN = getattr(arch_mod, 'ARCHITECTURE_WAN', 'wan')
+    ARCHITECTURE_HUNYUAN_VIDEO = getattr(arch_mod, 'ARCHITECTURE_HUNYUAN_VIDEO', 'hv')
     user_lib_architecture_wan = ARCHITECTURE_WAN
     user_lib_architecture_hv = ARCHITECTURE_HUNYUAN_VIDEO
-    #print("[MusubiTuner Nodes] SUCCESS: Imported dataset utilities and ARCHITECTURE constants.")
 
 except ImportError as e:
     print(f"[MusubiTuner Nodes] FAILED (ImportError) during initial library imports: {e}")
@@ -107,7 +184,7 @@ for folder in vae_folders:
 
 # Elimina duplicados y ordena la lista de nombres de archivo
 unique_vaes = sorted(list(set(all_vae_files)))
-# Añade el elemento vacío al principio para el combo
+# Aï¿½ade el elemento vacï¿½o al principio para el combo
 vaes_combo = [""] + unique_vaes
 #----------------------------------------------------------------------------------
 # TEXT ENCODER-------------------------------------------------------------------------
@@ -129,7 +206,7 @@ for folder in encoder_folders:
 
 # Elimina duplicados y ordena la lista de nombres de archivo
 unique_encoders = sorted(list(set(all_encoder_files)))
-# Añade el elemento vacío al principio para el combo
+# Aï¿½ade el elemento vacï¿½o al principio para el combo
 encoders_combo = [""] + unique_encoders
 #----------------------------------------------------------------------------------
 
@@ -160,8 +237,8 @@ class WanDatasetConfig: # This node is working, keep as is
     FUNCTION = "generate_config";
     CATEGORY = "musubi-tuner/wan/config"
     def generate_config(self, output_filename_prefix, general_resolution_width, general_resolution_height, general_caption_extension, general_batch_size, general_enable_bucket, general_bucket_no_upscale, dataset1_image_directory, dataset1_cache_directory, dataset1_num_repeats, dataset1_override_resolution, dataset1_resolution_width, dataset1_resolution_height):
-        node_name_print = f"[MusubiTuner {self.NODE_NAME}]"; print(f"{node_name_print} generate_config called."); 
-        config_dict = {"general": {"resolution": [general_resolution_height, general_resolution_width],"caption_extension": general_caption_extension, "batch_size": general_batch_size,"enable_bucket": general_enable_bucket, "bucket_no_upscale": general_bucket_no_upscale},"datasets": []}; 
+        node_name_print = f"[MusubiTuner {self.NODE_NAME}]"; print(f"{node_name_print} generate_config called.");
+        config_dict = {"general": {"resolution": [general_resolution_height, general_resolution_width],"caption_extension": general_caption_extension, "batch_size": general_batch_size,"enable_bucket": general_enable_bucket, "bucket_no_upscale": general_bucket_no_upscale},"datasets": []};
         dataset1_config_entry = {"image_directory": dataset1_image_directory.replace("\\", "/"),"cache_directory": dataset1_cache_directory.replace("\\", "/"),"num_repeats": dataset1_num_repeats, "enable_bucket": general_enable_bucket, "bucket_no_upscale": general_bucket_no_upscale};_ = dataset1_override_resolution and dataset1_config_entry.update({"resolution": [dataset1_resolution_height, dataset1_resolution_width]}); config_dict["datasets"].append(dataset1_config_entry); output_main_dir = folder_paths.get_output_directory(); node_output_dir = os.path.join(output_main_dir, "musubi_tuner_configs");
         if not os.path.exists(node_output_dir):
             try: os.makedirs(node_output_dir)
@@ -176,11 +253,11 @@ class WanCacheLatents:
     NODE_NAME = "WanCacheLatents"; IS_OUTPUT_NODE = False
     @classmethod
     def INPUT_TYPES(cls):
-        #vae_files = [""] + folder_paths.get_filename_list("vae"); 
+        #vae_files = [""] + folder_paths.get_filename_list("vae");
         clip_vision_files = [""] + folder_paths.get_filename_list("clip_vision")
         return {"required": {"dataset_config_toml": ("STRING", {"forceInput": True}),
-                             "trigger_in": ("*", {"forceInput": True}), 
-                             "vae_name": (vaes_combo, {"tooltip": "VAE Model (Variational AutoEncoder). Select the VAE that is compatible with your base model. The VAE is like the model's \"eyes,\" helping to encode and decode images during the process."}), 
+                             "trigger_in": ("*", {"forceInput": True}),
+                             "vae_name": (vaes_combo, {"tooltip": "VAE Model (Variational AutoEncoder). Select the VAE that is compatible with your base model. The VAE is like the model's \"eyes,\" helping to encode and decode images during the process."}),
                              "vae_dtype": (["bfloat16", "float16", "float32"], {"default": "bfloat16", "tooltip": "The data precision type for the VAE (the component that handles images). `bfloat16` is a good option for its balance between speed and quality."}),
                              "device": (["cuda", "cpu"], {"default": "cuda", "tooltip": "Choose the hardware device to use for processing. `cuda` uses your NVIDIA GPU (much faster), while `cpu` uses your computer's main processor (much slower)."}),
                              "batch_size_override": ("INT", {"default": 0, "tooltip": "Override the default batch size used for processing data. `0` means use the default value from the dataset configuration. A higher number processes more items at once, but uses more memory."}),
@@ -189,7 +266,7 @@ class WanCacheLatents:
                              "keep_cache": ("BOOLEAN", {"default": True, "tooltip": "If enabled, the processed data will be kept in the cache directory even after this operation completes, so it can be reused later without reprocessing."}),
                              "vae_cache_cpu": ("BOOLEAN", {"default": False, "tooltip": "If enabled, the VAE's processed outputs will be cached in your system's main memory (RAM) instead of GPU memory. Useful for saving VRAM, especially with large datasets, but can be slower if you have a slow CPU or hard drive."}),
                              "clip_name": (["None"] + clip_vision_files, {"default": "None", "tooltip": "CLIP Model (Vision). If your training is not for \"Image-to-Video\" (I2V) models, leave it as `None`. If it is I2V, select the appropriate CLIP model, as it helps the model understand the visual information from the input images."}),
-                             
+
                              }
                }
 
@@ -237,7 +314,7 @@ class WanCacheLatents:
         if batch_size_override > 0: args_dict["batch_size"] = batch_size_override
         if num_workers_override > 0: args_dict["num_workers"] = num_workers_override
 
-        args = ArgsNamespace(**args_dict); 
+        args = ArgsNamespace(**args_dict);
         #print(f"{node_name_print} Constructed args: {vars(args)}")
 
 
@@ -247,7 +324,7 @@ class WanCacheLatents:
         args = ArgsNamespace(**args_dict)
         #print(f"{node_name_print} Constructed args (pre-None fix): {vars(args)}")
 
-        # --- Enfoque Específico (Actualizado) ---
+        # --- Enfoque Especï¿½fico (Actualizado) ---
         if hasattr(args, 'debug_mode') and args.debug_mode is None:
             args.debug_mode = "None"
             #print(f"{node_name_print} Converted args.debug_mode to 'None'")
@@ -262,10 +339,10 @@ class WanCacheLatents:
         if hasattr(args, 'console_num_images') and args.console_num_images is None:
             args.console_num_images = 0 # Asignar un entero por defecto
             #print(f"{node_name_print} Converted args.console_num_images to 0")
-        # O si supieras que -1 es un valor especial válido:
+        # O si supieras que -1 es un valor especial vï¿½lido:
         # args.console_num_images = -1
         #print(f"{node_name_print} Cache latents args post fix: {vars(args)}")
-      
+
 
         actual_total_batches = 0
         try:
@@ -347,7 +424,7 @@ class WanCacheTextEncoder:  # REAL LOGIC
 
     def execute_cache_text_encoder(self, dataset_config_toml, trigger_in, t5_name, fp8_t5, device, batch_size_override, num_workers_override, skip_existing, keep_cache):
         node_name_print = f"[MusubiTuner {self.NODE_NAME}]"; print(f"{node_name_print} execute_cache_text_encoder called.")
-        # Asegúrate de que la entrada TOML es válida antes de intentar usarla
+        # Asegï¿½rate de que la entrada TOML es vï¿½lida antes de intentar usarla
         if "error" in str(trigger_in).lower() or "skipped" in str(trigger_in).lower() or "ERROR" in str(dataset_config_toml) or not os.path.exists(dataset_config_toml):
              # Devuelve el path TOML recibido, trigger de error, y mensaje de skip
             return (dataset_config_toml, "error_trigger", f"Skipped: prev error/skip or invalid TOML path: {dataset_config_toml}")
@@ -369,18 +446,18 @@ class WanCacheTextEncoder:  # REAL LOGIC
         args = ArgsNamespace(**args_dict); print(f"{node_name_print} Constructed args: {vars(args)}")
 
         # --- NUEVO BUCLE PARA CORREGIR TODOS LOS None (Copiado de Latents) ---
-        # No es estrictamente necesario re-crear args aquí si args_dict ya está completo,
-        # pero lo mantengo para consistencia con el código original y el ejemplo de Latents.
+        # No es estrictamente necesario re-crear args aquï¿½ si args_dict ya estï¿½ completo,
+        # pero lo mantengo para consistencia con el cï¿½digo original y el ejemplo de Latents.
         args = ArgsNamespace(**args_dict)
         # print(f"{node_name_print} Constructed args (pre-None fix): {vars(args)}") # Opcional debug
 
         if hasattr(args, 'debug_mode') and args.debug_mode is None:
-            args.debug_mode = "None" # Convertir None a string "None" si el script lo espera así
+            args.debug_mode = "None" # Convertir None a string "None" si el script lo espera asï¿½
             # print(f"{node_name_print} Converted args.debug_mode to 'None'") # Opcional debug
         if hasattr(args, 'console_back') and args.console_back is None:
-             args.console_back = "None" # Convertir None a string "None" si el script lo espera así
+             args.console_back = "None" # Convertir None a string "None" si el script lo espera asï¿½
              # print(f"{node_name_print} Converted args.console_back to 'None'") # Opcional debug
-        # No hay args.clip en este nodo, así que no hace falta el fix para clip aquí.
+        # No hay args.clip en este nodo, asï¿½ que no hace falta el fix para clip aquï¿½.
 
         # TRATAMIENTO PARA console_num_images (Si aplica y existe en el parser base)
         if hasattr(args, 'console_num_images') and args.console_num_images is None:
@@ -390,7 +467,7 @@ class WanCacheTextEncoder:  # REAL LOGIC
         # print(f"{node_name_print} Constructed args (post-None fix): {vars(args)}") # Opcional debug
         # -----------------------------------------------------------------------
 
-        # --- INICIO: Calcular el número total de batches para la barra de progreso ---
+        # --- INICIO: Calcular el nï¿½mero total de batches para la barra de progreso ---
         actual_total_batches = 0
         try:
             print(f"{node_name_print} Attempting to calculate total batches for progress bar...")
@@ -406,22 +483,22 @@ class WanCacheTextEncoder:  # REAL LOGIC
                 actual_total_batches += count
 
             if actual_total_batches == 0 and len(temp_dataset_group.datasets) > 0: actual_total_batches = len(temp_dataset_group.datasets)
-            elif actual_total_batches == 0: 
+            elif actual_total_batches == 0:
                  actual_total_batches = 10
                  print(f"actual batches not calculated correctly, setting up it as 10")
         except Exception as e_count: print(f"{node_name_print} Error calculating batches: {e_count}"); traceback.print_exc(); actual_total_batches = 100
 
-        
+
         print(f"{node_name_print} Initializing ProgressBar with total_batches: {actual_total_batches}")
         pbar = comfy.utils.ProgressBar(actual_total_batches); args.comfy_pbar = pbar
         status_message = f"Starting Wan text encoder caching..."; print(f"{node_name_print} {status_message}")
-        # --- Fin: Calcular el número total de batches para la barra de progreso ---
+        # --- Fin: Calcular el nï¿½mero total de batches para la barra de progreso ---
 
         try:
-            # La llamada real al script de caché externo
+            # La llamada real al script de cachï¿½ externo
             user_lib_wan_cache_text_encoder_outputs.main(args)
             #status_message = "Wan text encoder caching completed."; print(f"{node_name_print} {status_message}")
-            # Devuelve el path TOML recibido, trigger de éxito, y mensaje de estado
+            # Devuelve el path TOML recibido, trigger de ï¿½xito, y mensaje de estado
             return (dataset_config_toml, "text_ok", status_message,)
         except SystemExit as e_sysexit:
             error_message = f"Argparse error: SystemExit {e_sysexit.code}"; print(f"{node_name_print} {error_message}")
@@ -438,7 +515,7 @@ class WanLoRATrainer: # DUMMY EXECUTION, REAL INPUTS
 
     @classmethod
     def INPUT_TYPES(cls):
-        
+
         wan_tasks_list = list(user_lib_wan_configs.WAN_CONFIGS.keys()) #if user_lib_wan_configs and hasattr(user_lib_wan_configs, 'WAN_CONFIGS') else ["t2v-14B"]
         #diffusion_models_files = [""] + folder_paths.get_filename_list("diffusion_models")
         #vae_files = [""] + folder_paths.get_filename_list("vae")
@@ -450,7 +527,7 @@ class WanLoRATrainer: # DUMMY EXECUTION, REAL INPUTS
                 "trigger_in": ("*", {"forceInput": True}), # This input will now come from WanCacheTextEncoder
                 "dit_name": (models_combo, {"tooltip": "Base Model (DIT). Choose the main model (the large \"skeleton\") on top of which your LoRA will be trained. It's crucial that this is the correct one for your objective."}),
                 "vae_name": (vaes_combo, {"tooltip": "VAE Model (Variational AutoEncoder). Select the VAE that is compatible with your base model. The VAE is like the model's \"eyes,\" helping to encode and decode images during the process."}),
-                "t5_name": (encoders_combo, {"tooltip": "Text Encoder (T5). Select the T5 model that your base model uses. This component is the \"translator\" that converts your prompts (text) into a language the image model understands."}), 
+                "t5_name": (encoders_combo, {"tooltip": "Text Encoder (T5). Select the T5 model that your base model uses. This component is the \"translator\" that converts your prompts (text) into a language the image model understands."}),
                 "clip_name": (["None"] + clip_vision_files, {"default": "None", "tooltip": "CLIP Model (Vision). If your training is not for \"Image-to-Video\" (I2V) models, leave it as `None`. If it is I2V, select the appropriate CLIP model, as it helps the model understand the visual information from the input images."}),
                 "output_dir": ("STRING", {"default": os.path.join(folder_paths.get_output_directory(), "musubi_loras") , "tooltip": "The folder where your LoRA will be saved once training is complete. By default, it will be saved in ComfyUI's `output` folder."}),
                 "output_name": ("STRING", {"default": "my_wan_lora", "tooltip": "The name you'll give your final LoRA file. For example, if you enter \"my_character\", the file will be named `my_character.safetensors`."}),
@@ -475,7 +552,7 @@ class WanLoRATrainer: # DUMMY EXECUTION, REAL INPUTS
                 "persistent_data_loader_workers": ("BOOLEAN", {"default": True, "tooltip": "Whether to keep data loading processes active all the time. Enable this to reduce startup time between \"epochs\" (full passes through the data) if you have many small epochs."}),
                 "save_every_n_steps": ("INT", {"default": 0, "tooltip": "Saves a copy (checkpoint) of the LoRA every certain number of training \"steps.\" Useful for saving progress and recovering if something goes wrong. Set to `0` to not save by steps."}),
                 "save_every_n_epochs": ("INT", {"default": 1, "tooltip": "Saves a copy (checkpoint) of the LoRA every certain number of \"epochs\" (when it has processed all training data once). Useful for saving stable versions. Set to `0` to not save by epochs."}),
-                "save_state": ("BOOLEAN", {"default": False, "tooltip": "Whether to save the full training \"state\" (not just the LoRA file). This allows you to resume training exactly where you left off if it's interrupted or if you want to perform more steps later."}),  
+                "save_state": ("BOOLEAN", {"default": False, "tooltip": "Whether to save the full training \"state\" (not just the LoRA file). This allows you to resume training exactly where you left off if it's interrupted or if you want to perform more steps later."}),
                 "scale_weight_norms": ("FLOAT", {"default": 1.0, "tooltip": "Adjusts the \"strength\" of the LoRA weights during training. A small value can help keep the LoRA more subtle and closer to the base model. (If set to `0.0`, it means it's not used)."}),
                 "timestep_sampling": (["sigma", "uniform", "sigmoid", "shift"], {"default": "shift", "tooltip": "Method for sampling the \"timesteps\" of the diffusion process. This affects how the model learns to generate images at different noise stages. `sigma` is a good default."}),
                 "discrete_flow_shift": ("FLOAT", {"default": 3.0, "tooltip": "A specific adjustment for the `shift` timestep sampling method. It's usually not necessary to modify this unless you know what you're doing or are following a very specific guide."}),
@@ -522,15 +599,15 @@ class WanLoRATrainer: # DUMMY EXECUTION, REAL INPUTS
                 for action in parser._actions:
                     if action.dest != "help": # Excluir el argumento de ayuda
                         temp_defaults[action.dest] = action.default
-                
-                # Para asegurar que los required que no tienen default en el parser
-                # pero sí en el nodo (como dit, vae) se inicializan, aunque no sean usados por el defaulter.
-                # El script `get_full_wan_train_arg_parser` debería tener defaults o ser opcionales.
-                # Si son estrictamente requeridos sin default en el parser, esto podría ser un problema,
-                # pero el nodo los proveerá después.
-                # El objetivo aquí es obtener los defaults *definidos en el parser*.
 
-                # Forzar algunos valores que el parser podría esperar para no fallar si parse_known_args se usa:
+                # Para asegurar que los required que no tienen default en el parser
+                # pero sï¿½ en el nodo (como dit, vae) se inicializan, aunque no sean usados por el defaulter.
+                # El script `get_full_wan_train_arg_parser` deberï¿½a tener defaults o ser opcionales.
+                # Si son estrictamente requeridos sin default en el parser, esto podrï¿½a ser un problema,
+                # pero el nodo los proveerï¿½ despuï¿½s.
+                # El objetivo aquï¿½ es obtener los defaults *definidos en el parser*.
+
+                # Forzar algunos valores que el parser podrï¿½a esperar para no fallar si parse_known_args se usa:
                 dummy_cli_args_for_parsing_test = [
                      '--output_dir', 'dummy_out_parser_test',
                      '--output_name', 'dummy_lora_parser_test',
@@ -539,16 +616,16 @@ class WanLoRATrainer: # DUMMY EXECUTION, REAL INPUTS
                      '--dataset_config', 'dummy_config.toml' # Requerido por el parser base
                 ]
                 # Parse known args para obtener una namespace completa con defaults procesados
-                # y luego convertirla a dict. Esto es más robusto que solo action.default.
+                # y luego convertirla a dict. Esto es mï¿½s robusto que solo action.default.
                 defaults_ns, unknown = parser.parse_known_args(dummy_cli_args_for_parsing_test)
                 if unknown: print(f"{node_name_print} Unknown args while getting defaults with dummy args: {unknown}")
                 defaults_dict = vars(defaults_ns)
 
                 # Eliminar los valores dummy que no son verdaderos defaults del parser.
-                # Los argumentos que sí tienen default en el parser retendrán ese default.
-                # Los que no, y fueron proveídos por dummy_cli_args, retendrán ese valor dummy
-                # pero serán sobrescritos por los valores del nodo.
-                # Esto es un poco heurístico, pero el objetivo es llenar args_dict con los defaults del parser.
+                # Los argumentos que sï¿½ tienen default en el parser retendrï¿½n ese default.
+                # Los que no, y fueron proveï¿½dos por dummy_cli_args, retendrï¿½n ese valor dummy
+                # pero serï¿½n sobrescritos por los valores del nodo.
+                # Esto es un poco heurï¿½stico, pero el objetivo es llenar args_dict con los defaults del parser.
                 # Los valores de dummy_cli_args_for_parsing_test deben ser reemplazados por los del nodo.
 
                 #print(f"{node_name_print} Defaults from combined train parsers (after dummy parse): {defaults_dict}")
@@ -563,7 +640,7 @@ class WanLoRATrainer: # DUMMY EXECUTION, REAL INPUTS
         node_name_print = f"[MusubiTuner {self.NODE_NAME}]"
         print(f"{node_name_print} execute_train_lora called. Trigger: {trigger_in}")
 
-        # Gestión de salida por defecto si hay error previo
+        # Gestiï¿½n de salida por defecto si hay error previo
         error_output_dir_default = kwargs.get("output_dir", os.path.join(folder_paths.get_output_directory(), "musubi_loras"))
         error_output_name_default = kwargs.get("output_name", "dummy_error_lora")
         dummy_lora_filepath_on_skip = os.path.join(error_output_dir_default, f"{error_output_name_default}.safetensors")
@@ -579,7 +656,7 @@ class WanLoRATrainer: # DUMMY EXECUTION, REAL INPUTS
         if args_dict is None: args_dict = {} # Salvaguarda
 
 
-        # --- INICIO DE LA NUEVA LÓGICA: Fusionar compile_settings ---
+        # --- INICIO DE LA NUEVA Lï¿½GICA: Fusionar compile_settings ---
         # Extraer compile_settings de kwargs antes de procesar el resto
         incoming_compile_settings = kwargs.pop("compile_settings", {})
         if incoming_compile_settings:
@@ -595,22 +672,22 @@ class WanLoRATrainer: # DUMMY EXECUTION, REAL INPUTS
         incoming_sampling_settings = kwargs.pop("sampling_settings", {})
 
         if incoming_sampling_settings:
-           print(f"{node_name_print} Received sampling_settings: {incoming_sampling_settings}") 
-           args_dict.update(incoming_sampling_settings) 
+           print(f"{node_name_print} Received sampling_settings: {incoming_sampling_settings}")
+           args_dict.update(incoming_sampling_settings)
 
-        # --- FIN DE LA NUEVA LÓGICA ---
+        # --- FIN DE LA NUEVA Lï¿½GICA ---
 
-        # Sobrescribir y añadir valores de los inputs del nodo (kwargs)
+        # Sobrescribir y aï¿½adir valores de los inputs del nodo (kwargs)
         # Paths de modelos:
         args_dict["dit"] = folder_paths.get_full_path("diffusion_models", kwargs.get('dit_name'))
         args_dict["vae"] = folder_paths.get_full_path("vae", kwargs.get('vae_name'))
         args_dict["t5"] = folder_paths.get_full_path("text_encoders", kwargs.get('t5_name'))
-        
+
         clip_name_val = kwargs.get('clip_name')
         args_dict["clip"] = folder_paths.get_full_path("clip_vision", clip_name_val) if clip_name_val and clip_name_val.strip("None") != "" else ""
         args_dict["dataset_config"] = dataset_config_toml # Path al TOML
 
-        # Todos los demás kwargs del nodo
+        # Todos los demï¿½s kwargs del nodo
         for key, value in kwargs.items():
             if key in ["dit_name", "vae_name", "t5_name", "clip_name", "dataset_config_toml", "trigger_in"]:
                 continue # Ya manejados o no son argumentos del script
@@ -621,22 +698,22 @@ class WanLoRATrainer: # DUMMY EXECUTION, REAL INPUTS
                 args_dict["optimizer_args"] = [s.strip() for s in value.splitlines() if s.strip()] if value and value.strip() else []
             else:
                 args_dict[key] = value
-        
-        # Asegurar que output_dir y output_name estén definidos
+
+        # Asegurar que output_dir y output_name estï¿½n definidos
         if not args_dict.get("output_dir"):
             args_dict["output_dir"] = error_output_dir_default # Usar el default del nodo
         if not args_dict.get("output_name"):
             args_dict["output_name"] = kwargs.get("output_name", "my_wan_lora_node_default")
 
-        
-        # Manejo de logging_dir (basado en el código original del nodo)
+
+        # Manejo de logging_dir (basado en el cï¿½digo original del nodo)
         #log_with_val = args_dict.get("log_with", "none")
         #if log_with_val in ["tensorboard", "all"]:
         #    user_provided_logging_dir = args_dict.get("logging_dir", "") # logging_dir viene de kwargs
         #    if user_provided_logging_dir and os.path.isabs(user_provided_logging_dir):
         #        final_logging_dir = user_provided_logging_dir
         #    else:
-        #        base_log_path = args_dict["output_dir"] 
+        #        base_log_path = args_dict["output_dir"]
         #        log_suffix = args_dict.get("logging_dir_suffix", "logs")
         #        sub_dir_name = user_provided_logging_dir if user_provided_logging_dir else log_suffix
         #        final_logging_dir = os.path.join(base_log_path, sub_dir_name)
@@ -645,13 +722,13 @@ class WanLoRATrainer: # DUMMY EXECUTION, REAL INPUTS
         #    args_dict["logging_dir"] = None # O el default del parser si es diferente
 
         # Manejo de attn_mode (convertir a flags booleanos)
-        # Esto ya estaba en el código original, se mantiene.
+        # Esto ya estaba en el cï¿½digo original, se mantiene.
         selected_attn_mode_str = args_dict.get("attn_mode", "torch")
         defaults_from_parser_for_attn = self._get_argparse_defaults_train() # Re-obtener o guardar
-        
+
         # Asegurar que estos flags existen en args_dict, inicializados a False o al default del parser
-        # si el parser los define (lo cual debería hacer get_full_wan_train_arg_parser)
-        attn_flags = ["sdpa", "flash_attn", "sage_attn", "xformers", "flash3"] # flash3 es hipotético
+        # si el parser los define (lo cual deberï¿½a hacer get_full_wan_train_arg_parser)
+        attn_flags = ["sdpa", "flash_attn", "sage_attn", "xformers", "flash3"] # flash3 es hipotï¿½tico
         for flag in attn_flags:
             args_dict[flag] = defaults_from_parser_for_attn.get(flag, False)
 
@@ -660,10 +737,10 @@ class WanLoRATrainer: # DUMMY EXECUTION, REAL INPUTS
         elif selected_attn_mode_str == "sageattn": args_dict["sage_attn"] = True
         elif selected_attn_mode_str == "xformers": args_dict["xformers"] = True
         # elif selected_attn_mode_str == "flash3": args_dict["flash3"] = True # Si existiera
-        
-        if "attn_mode" in args_dict: # Eliminar la clave original de selección
+
+        if "attn_mode" in args_dict: # Eliminar la clave original de selecciï¿½n
             del args_dict["attn_mode"]
-        
+
         # Crear el namespace final a partir de args_dict
         args = ArgsNamespace(**args_dict)
 
@@ -676,43 +753,43 @@ class WanLoRATrainer: # DUMMY EXECUTION, REAL INPUTS
                 return (os.path.join(args_dict.get("output_dir", error_output_dir_default), f"{args_dict.get('output_name', error_output_name_default)}.safetensors"),
                         f"ERROR_CREATING_TRAIN_DIR: {e_mkdir}")
 
-        # --- IMPRESIÓN DETALLADA DE ARGUMENTOS ANTES DE SUBPROCESO ---
+        # --- IMPRESIï¿½N DETALLADA DE ARGUMENTOS ANTES DE SUBPROCESO ---
         #print(f"{node_name_print} --- ARGUMENTS PREPARED FOR SUBPROCESS ---")
         #for arg_name, arg_value in sorted(vars(args).items()):
         #print(f"{node_name_print}   {arg_name}: {arg_value} (Type: {type(arg_value)})")
         #print(f"{node_name_print} --- END OF PREPARED ARGUMENTS ---")
 
         # --- INICIO DEL CAMBIO IMPORTANTE ---
-        # Si estás usando shutil.which("accelerate") y ahora te da la ruta correcta:
+        # Si estï¿½s usando shutil.which("accelerate") y ahora te da la ruta correcta:
         accelerate_script_path = shutil.which("accelerate")
         if not accelerate_script_path:
-            # Manejar error si no se encuentra, aunque ahora debería encontrarlo.
+            # Manejar error si no se encuentra, aunque ahora deberï¿½a encontrarlo.
             return (os.path.join(args.output_dir, f"{args.output_name}_accel_error.safetensors"),
                     "ERROR: accelerate executable not found in PATH (ensure ComfyUI env Scripts dir is in PATH).")
-        
+
         #print(f"{node_name_print} Using accelerate script (from shutil.which): {accelerate_script_path}")
         # --- FIN DEL CAMBIO IMPORTANTE ---
 
-        # Path al script run_wan_training.py (asumiendo que está en el mismo directorio que este nodo)
+        # Path al script run_wan_training.py (asumiendo que estï¿½ en el mismo directorio que este nodo)
         current_node_script_path = os.path.abspath(__file__)
         custom_node_directory = os.path.dirname(current_node_script_path)
         run_script_path = os.path.join(custom_node_directory, "run_wan_training.py")
-        
+
         if not os.path.exists(run_script_path):
              return (os.path.join(args.output_dir, f"{args.output_name}_script_error.safetensors"),
                     f"ERROR: run_wan_training.py not found at {run_script_path}")
 
         # Construir el comando para accelerate launch
         cmd = [accelerate_script_path, "launch"] # <--- USA EL SCRIPT DIRECTAMENTE
-        # Aquí se podrían añadir argumentos específicos para `accelerate launch` si fuera necesario,
+        # Aquï¿½ se podrï¿½an aï¿½adir argumentos especï¿½ficos para `accelerate launch` si fuera necesario,
         # por ejemplo, --num_processes, si no se gestiona por config o el script interno.
-        # Añadir num_cpu_threads_per_process para accelerate launch
+        # Aï¿½adir num_cpu_threads_per_process para accelerate launch
         if hasattr(args, 'num_cpu_threads_per_process') and args.num_cpu_threads_per_process > 0:
             print("SETTING UP CPU THREADS :" + str(args.num_cpu_threads_per_process))
             cmd.extend(["--num_cpu_threads_per_process", str(args.num_cpu_threads_per_process)])
-        # El argumento mixed_precision SÍ es un argumento de `accelerate launch` Y del script.
-        # Lo pasaremos al script, y `accelerate launch` también podría recogerlo si es un arg global.
-        # Para ser explícito con `accelerate launch`:
+        # El argumento mixed_precision Sï¿½ es un argumento de `accelerate launch` Y del script.
+        # Lo pasaremos al script, y `accelerate launch` tambiï¿½n podrï¿½a recogerlo si es un arg global.
+        # Para ser explï¿½cito con `accelerate launch`:
         if hasattr(args, 'mixed_precision') and args.mixed_precision != "no":
              cmd.extend(["--mixed_precision", args.mixed_precision])
         # Si tuvieras num_gpus o num_processes como input del nodo:
@@ -720,46 +797,46 @@ class WanLoRATrainer: # DUMMY EXECUTION, REAL INPUTS
         #Max epoch
         if hasattr(args, 'max_train_epochs') and args.max_train_epochs == 0:
              args["max_train_epochs"] = None
-        
-        
 
-    # Aquí iría la lógica para configurar el modelo o el optimizador para FP8 base
+
+
+    # Aquï¿½ irï¿½a la lï¿½gica para configurar el modelo o el optimizador para FP8 base
     # Por ejemplo, usar torch.autocast con dtype=torch.float8_e4m3fn si el hardware/PyTorch lo soporta.
 
         cmd.append(run_script_path)
 
-        # Convertir el namespace 'args' a argumentos de línea de comando para run_script_path
+        # Convertir el namespace 'args' a argumentos de lï¿½nea de comando para run_script_path
         for key, value in vars(args).items():
             if value is None:
                 continue # No pasar argumentos con valor None
             if key in ["num_cpu_threads_per_process"]:
                 continue
-            # Argumentos que son para accelerate launch y ya se han añadido, o que no son para el script
+            # Argumentos que son para accelerate launch y ya se han aï¿½adido, o que no son para el script
             if key in ["mixed_precision"]: # mixed_precision se pasa al script Y a accelerate launch
-                                           # Si hay otros args solo para accelerate, listarlos aquí para skip.
-                pass                       # Dejar que se añada también para el script, Accelerator lo puede usar.
-            
+                                           # Si hay otros args solo para accelerate, listarlos aquï¿½ para skip.
+                pass                       # Dejar que se aï¿½ada tambiï¿½n para el script, Accelerator lo puede usar.
+
             if isinstance(value, bool):
                 if value:
                     cmd.append(f"--{key}")
-                # Si es False, se omite el flag (comportamiento estándar para store_true)
+                # Si es False, se omite el flag (comportamiento estï¿½ndar para store_true)
             elif isinstance(value, list):
-                if value: # Solo añadir si la lista no está vacía
+                if value: # Solo aï¿½adir si la lista no estï¿½ vacï¿½a
                     cmd.append(f"--{key}")
                     for item in value:
                         cmd.append(str(item))
-            elif key == "training_comment" and not value.strip(): # No pasar training_comment si está vacío
+            elif key == "training_comment" and not value.strip(): # No pasar training_comment si estï¿½ vacï¿½o
                 continue
-            elif key == "network_weights" and not value.strip(): # No pasar network_weights_path si está vacío
+            elif key == "network_weights" and not value.strip(): # No pasar network_weights_path si estï¿½ vacï¿½o
                 continue
             else:
                 cmd.append(f"--{key}")
                 cmd.append(str(value))
-        
+
         #print(f"{node_name_print} Executing command: {' '.join(cmd)}")
 
 
-        final_lora_filename = f"{args.output_name}.safetensors" # Asumiendo que el script lo guarda así
+        final_lora_filename = f"{args.output_name}.safetensors" # Asumiendo que el script lo guarda asï¿½
         final_lora_path = os.path.join(args.output_dir, final_lora_filename)
 
         result = None
@@ -767,41 +844,41 @@ class WanLoRATrainer: # DUMMY EXECUTION, REAL INPUTS
 
         # --- 3. Ejecutar el entrenamiento en subproceso ---
         try:
-            # El CWD para el subproceso podría ser importante si hay paths relativos en configs
+            # El CWD para el subproceso podrï¿½a ser importante si hay paths relativos en configs
             # Por defecto es el CWD de ComfyUI. Si el script espera estar en su propio dir:
             # process_cwd = custom_node_directory
             process_cwd = None # Usar CWD actual (ComfyUI base)
 
             # Capturar stdout y stderr para logging
             # Usar Popen para streaming si es necesario, o run para completado.
-            # Para un proceso largo como el entrenamiento, Popen con logs en tiempo real sería mejor,
-            # pero más complejo. `run` es más simple para empezar.
+            # Para un proceso largo como el entrenamiento, Popen con logs en tiempo real serï¿½a mejor,
+            # pero mï¿½s complejo. `run` es mï¿½s simple para empezar.
             env = os.environ.copy()
             env["PYTHONIOENCODING"] = "utf-8"
             #print(f"{node_name_print} Setting PYTHONIOENCODING=utf-8 for subprocess.")
-            # Cualquier variable de entorno específica aquí, por ejemplo:
+            # Cualquier variable de entorno especï¿½fica aquï¿½, por ejemplo:
             # env["PYTHONUNBUFFERED"] = "1"
             # env["CUDA_VISIBLE_DEVICES"] = ... (si accelerate no lo gestiona)
 
             result = subprocess.Popen(
                 cmd,
                 cwd=process_cwd,
-                stdout=subprocess.PIPE,  # Capturar la salida estándar
-                stderr=subprocess.STDOUT, # Fusionar la salida de error estándar en stdout para leer desde un único pipe
+                stdout=subprocess.PIPE,  # Capturar la salida estï¿½ndar
+                stderr=subprocess.STDOUT, # Fusionar la salida de error estï¿½ndar en stdout para leer desde un ï¿½nico pipe
                 text=True,               # Decodificar la salida como texto usando el encoding especificado
                 encoding='utf-8',        # Especificar el encoding
-                bufsize=1,               # Usar line buffering para leer línea a línea más fácilmente
-                # universal_newlines=True, # Redundante con text=True, pero no hace daño
-                # check=False,           # No es una opción de Popen, se maneja al final con wait()
+                bufsize=1,               # Usar line buffering para leer lï¿½nea a lï¿½nea mï¿½s fï¿½cilmente
+                # universal_newlines=True, # Redundante con text=True, pero no hace daï¿½o
+                # check=False,           # No es una opciï¿½n de Popen, se maneja al final con wait()
                 env=env
             )
-        
+
             #print(f"{node_name_print} Subprocess started. Output:")
-        
-            # Leer la salida en tiempo real, línea por línea
-            # Este bucle se ejecutará mientras el subproceso produzca salida
+
+            # Leer la salida en tiempo real, lï¿½nea por lï¿½nea
+            # Este bucle se ejecutarï¿½ mientras el subproceso produzca salida
             # process.stdout es un objeto tipo archivo que se puede iterar
-            
+
             actual_progress = 0
             total_progress = 100
             current_line = "";
@@ -809,7 +886,7 @@ class WanLoRATrainer: # DUMMY EXECUTION, REAL INPUTS
             check_start_line = False;
             pbar = comfy.utils.ProgressBar(total_progress);
             for line in result.stdout:
-                # Imprimir la línea inmediatamente. rstrip() elimina el salto de línea
+                # Imprimir la lï¿½nea inmediatamente. rstrip() elimina el salto de lï¿½nea
                 # que ya viene en 'line' del proceso hijo.
                 current_line = line.rstrip();
                 check_start_line = current_line.startswith('steps');
@@ -820,24 +897,24 @@ class WanLoRATrainer: # DUMMY EXECUTION, REAL INPUTS
                           actual_progress = int(digit_string.group(1))
                       except ValueError:
                               print(f"Error al convertir '{digit_string}' a entero.")
-                   pbar.update_absolute(actual_progress, total_progress) 
-                
+                   pbar.update_absolute(actual_progress, total_progress)
+
                 print(f"{node_name_print} TRAINER: {current_line}")
                 # Forzar que la salida se escriba en la consola inmediatamente
                 sys.stdout.flush()
 
-                
-            
-            
-            # Una vez que el bucle termina (porque el pipe se cerró, indicando que el proceso acabó),
-            # esperamos a que el proceso realmente termine y obtenemos su código de salida.
+
+
+
+            # Una vez que el bucle termina (porque el pipe se cerrï¿½, indicando que el proceso acabï¿½),
+            # esperamos a que el proceso realmente termine y obtenemos su cï¿½digo de salida.
             returncode = result.wait()
-        
+
             #print(f"{node_name_print} Subprocess finished with return code {returncode}.")
 
-            # Ahora manejamos el código de salida
+            # Ahora manejamos el cï¿½digo de salida
             if returncode != 0:
-                # El subproceso terminó con un error (código != 0)
+                # El subproceso terminï¿½ con un error (cï¿½digo != 0)
                error_message = f"Training subprocess failed with return code {returncode}. See logs above for details."
                print(f"{node_name_print} ERROR: {error_message}", file=sys.stderr)
                # Retornar la ruta esperada, pero con un estado de error
@@ -845,9 +922,9 @@ class WanLoRATrainer: # DUMMY EXECUTION, REAL INPUTS
 
 
             if not os.path.exists(final_lora_path):
-               # El archivo no se encontró a pesar del return code 0. Esto es una advertencia.
-               # time.sleep(1) # El sleep del código original estaba aquí, puedes dejarlo si quieres ser extra precavido con FS
-               if not os.path.exists(final_lora_path): # Doble check después del sleep opcional
+               # El archivo no se encontrï¿½ a pesar del return code 0. Esto es una advertencia.
+               # time.sleep(1) # El sleep del cï¿½digo original estaba aquï¿½, puedes dejarlo si quieres ser extra precavido con FS
+               if not os.path.exists(final_lora_path): # Doble check despuï¿½s del sleep opcional
                    warning_message = f"WARNING: Subprocess finished with return code 0, but final LoRA file not found at expected path: {final_lora_path}. Check subprocess logs for potential warnings/errors during save."
                    print(f"{node_name_print} {warning_message}", file=sys.stderr)
                    # Retornar la ruta esperada, pero con un estado de advertencia
@@ -855,35 +932,35 @@ class WanLoRATrainer: # DUMMY EXECUTION, REAL INPUTS
 
             status_message = f"Wan LoRA training via subprocess completed. LoRA saved at: {final_lora_path}"
             print(f"{node_name_print} {status_message}")
-            # Retornar la ruta y el estado de éxito
+            # Retornar la ruta y el estado de ï¿½xito
             return (final_lora_path, "train_ok")
         except FileNotFoundError as e_fnf:
             error_message = f"ERROR: Command not found: {cmd[0]}. Ensure accelerate or the training script is installed and in your PATH, or provide full paths. Details: {e_fnf}"
             print(f"{node_name_print} {error_message}", file=sys.stderr)
-            # Incluir traceback para depuración
+            # Incluir traceback para depuraciï¿½n
             traceback.print_exc()
-            # Retornar una ruta indicativa de error (o la esperada si args está disponible) y el mensaje de error
+            # Retornar una ruta indicativa de error (o la esperada si args estï¿½ disponible) y el mensaje de error
             return (os.path.join(args.output_dir, f"{args.output_name}_error_cmd_not_found.safetensors"), error_message)
         except subprocess.TimeoutExpired as e_timeout:
-            # Intentar terminar el subproceso si todavía está corriendo
+            # Intentar terminar el subproceso si todavï¿½a estï¿½ corriendo
             if result and result.poll() is None:
                  print(f"{node_name_print} Subprocess timed out. Attempting to terminate...", file=sys.stderr)
                  try:
-                     result.terminate() # O result.kill() para más agresividad
-                     # Esperar un poco para que el proceso termine después de la señal
-                     result.wait(timeout=5) # Puedes ajustar o quitar el timeout aquí si prefieres no esperar
+                     result.terminate() # O result.kill() para mï¿½s agresividad
+                     # Esperar un poco para que el proceso termine despuï¿½s de la seï¿½al
+                     result.wait(timeout=5) # Puedes ajustar o quitar el timeout aquï¿½ si prefieres no esperar
                  except:
                      # Ignorar errores al intentar terminar el proceso
                      pass
                  print(f"{node_name_print} Subprocess termination attempt finished.", file=sys.stderr)
-            
+
             error_message = f"ERROR: Training subprocess timed out after {e_timeout.timeout} seconds. Details: {e_timeout}"
             print(f"{node_name_print} {error_message}", file=sys.stderr)
             traceback.print_exc()
             # Retornar una ruta indicativa de error y el mensaje de error
             return (os.path.join(args.output_dir, f"{args.output_name}_timeout.safetensors"), error_message)
         except Exception as e_general:
-        # Intentar terminar el subproceso si parece que se inició y luego falló
+        # Intentar terminar el subproceso si parece que se iniciï¿½ y luego fallï¿½
             if result and result.poll() is None:
                  print(f"{node_name_print} Unexpected exception occurred, subprocess might still be running. Attempting to terminate...", file=sys.stderr)
                  try:
@@ -892,10 +969,10 @@ class WanLoRATrainer: # DUMMY EXECUTION, REAL INPUTS
                  except:
                      pass
                  print(f"{node_name_print} Subprocess termination attempt finished.", file=sys.stderr)
-            
+
             error_message = f"ERROR: An unexpected error occurred during subprocess execution: {str(e_general)}"
             print(f"{node_name_print} {error_message}", file=sys.stderr)
-            # Incluir traceback para depuración detallada
+            # Incluir traceback para depuraciï¿½n detallada
             traceback.print_exc()
             # Retornar la ruta esperada (aunque probablemente no exista) y el mensaje de error
             return (final_lora_path, f"ERROR: {error_message}")

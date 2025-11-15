@@ -6,11 +6,14 @@ import comfy.utils
 import folder_paths
 import time
 import shutil
-from .musubi_utils import models_combo, vaes_combo, encoders_combo, clip_vision_files
+try:
+    from .musubi_utils import models_combo, vaes_combo, encoders_combo, clip_vision_files
+except Exception:
+    from musubi_utils import models_combo, vaes_combo, encoders_combo, clip_vision_files
 
-# Nota: Para este nodo específico, no necesitamos importar argparse, toml, etc.,
+# Nota: Para este nodo especï¿½fico, no necesitamos importar argparse, toml, etc.,
 # ya que solo estamos recolectando los argumentos en un diccionario.
-# Estos serán pasados al WanLoRATrainer.
+# Estos serï¿½n pasados al WanLoRATrainer.
 
 class MusubiCompileSettings:
     NODE_NAME = "MusubiCompileSettings"
@@ -18,7 +21,7 @@ class MusubiCompileSettings:
 
     @classmethod
     def INPUT_TYPES(s):
-        # Identificamos los argumentos relacionados con la compilación y optimización
+        # Identificamos los argumentos relacionados con la compilaciï¿½n y optimizaciï¿½n
         # de la lista de argumentos de `run_wan_training.py` proporcionada.
         return {
             "required": {
@@ -29,14 +32,14 @@ class MusubiCompileSettings:
                 "dynamo_fullgraph": ("BOOLEAN", {"default": False, "tooltip": "Forces TorchDynamo to capture the entire graph (disables graph breaks)."}),
                 "dynamo_dynamic": ("BOOLEAN", {"default": False, "tooltip": "Enables dynamic shapes for TorchDynamo."}),
             },
-            # Podemos añadir inputs opcionales si surge la necesidad, pero por ahora todos son "required"
+            # Podemos aï¿½adir inputs opcionales si surge la necesidad, pero por ahora todos son "required"
             # y se gestionan sus valores por defecto.
         }
 
-    RETURN_TYPES = ("DICT",) # Devolverá un diccionario con los ajustes de compilación
+    RETURN_TYPES = ("DICT",) # Devolverï¿½ un diccionario con los ajustes de compilaciï¿½n
     RETURN_NAMES = ("compile_settings",)
     FUNCTION = "get_compile_settings"
-    CATEGORY = "musubi-tuner/wan/settings" # Nueva categoría para agrupar ajustes
+    CATEGORY = "musubi-tuner/wan/settings" # Nueva categorï¿½a para agrupar ajustes
 
     def get_compile_settings(self, fp8_base, fp8_scaled, dynamo_backend, dynamo_mode, dynamo_fullgraph, dynamo_dynamic):
         node_name_print = f"[MusubiTuner {self.NODE_NAME}]"
@@ -52,13 +55,13 @@ class MusubiCompileSettings:
         # Manejar los combos que pueden significar "desactivado" o "por defecto"
         if dynamo_backend != "NO":
             settings["dynamo_backend"] = dynamo_backend
-        # else: Si es "NO", no lo añadimos al diccionario para que el parser lo ignore.
+        # else: Si es "NO", no lo aï¿½adimos al diccionario para que el parser lo ignore.
 
         if dynamo_mode != "default":
             settings["dynamo_mode"] = dynamo_mode
-        # else: Si es "default", no lo añadimos al diccionario.
+        # else: Si es "default", no lo aï¿½adimos al diccionario.
 
-        # Filtra los booleanos False para que no se pasen explícitamente si el script espera ausencia de flag.
+        # Filtra los booleanos False para que no se pasen explï¿½citamente si el script espera ausencia de flag.
         # Por ejemplo, si `--fp8_base` es un flag `store_true`, pasar `--fp8_base False` es un error.
         # Es mejor omitir el flag por completo si el valor es False.
         final_settings = {k: v for k, v in settings.items() if not (isinstance(v, bool) and v is False)}
@@ -72,7 +75,7 @@ class MusubiMemorySettings: # Nuevo nodo
 
     @classmethod
     def INPUT_TYPES(s):
-        # blocks_to_swap: suele ser un número de bloques (INT), 0 o -1 para deshabilitar
+        # blocks_to_swap: suele ser un nï¿½mero de bloques (INT), 0 o -1 para deshabilitar
         # img_in_txt_in_offloading: un flag booleano
         return {
             "required": {
@@ -81,10 +84,10 @@ class MusubiMemorySettings: # Nuevo nodo
             }
         }
 
-    RETURN_TYPES = ("DICT",) # Devolverá un diccionario con los ajustes de memoria
+    RETURN_TYPES = ("DICT",) # Devolverï¿½ un diccionario con los ajustes de memoria
     RETURN_NAMES = ("memory_settings",)
     FUNCTION = "get_memory_settings"
-    CATEGORY = "musubi-tuner/wan/settings" # Misma categoría que Compile Settings
+    CATEGORY = "musubi-tuner/wan/settings" # Misma categorï¿½a que Compile Settings
 
     def get_memory_settings(self, blocks_to_swap, img_in_txt_in_offloading):
         node_name_print = f"[MusubiTuner {self.NODE_NAME}]"
@@ -99,12 +102,12 @@ class MusubiMemorySettings: # Nuevo nodo
         final_settings = {}
         for k, v in settings.items():
             if isinstance(v, bool):
-                if v: # Solo añadir si es True (para flags store_true)
+                if v: # Solo aï¿½adir si es True (para flags store_true)
                     final_settings[k] = v
             elif k == "blocks_to_swap":
-                if v > 0: # Solo añadir blocks_to_swap si es mayor que 0 (significa que hay algo que swappear)
+                if v > 0: # Solo aï¿½adir blocks_to_swap si es mayor que 0 (significa que hay algo que swappear)
                     final_settings[k] = v
-            else: # Otros tipos de argumentos se añaden directamente
+            else: # Otros tipos de argumentos se aï¿½aden directamente
                 final_settings[k] = v
         
         print(f"{node_name_print} Generated settings: {final_settings}")
@@ -117,20 +120,20 @@ class MusubiSamplingSettings:
     @classmethod
     def INPUT_TYPES(s):
         # Reutilizamos las listas de modelos que ya se cargan al inicio del script principal
-        # Si este archivo no las tiene, tendrás que copiar el código que escanea las carpetas
+        # Si este archivo no las tiene, tendrï¿½s que copiar el cï¿½digo que escanea las carpetas
         # pero por lo que veo en tu script, 'vaes_combo', 'encoders_combo' son globales.
-        # Si no lo fueran, tendrías que pasar 'self' en el método o recargarlos aquí.
-        # Asumimos que están disponibles.
+        # Si no lo fueran, tendrï¿½as que pasar 'self' en el mï¿½todo o recargarlos aquï¿½.
+        # Asumimos que estï¿½n disponibles.
         clip_vision_files = ["None"] + folder_paths.get_filename_list("clip_vision")
 
         return {
             "required": {
-                # Parámetros para controlar la frecuencia del sampleo
+                # Parï¿½metros para controlar la frecuencia del sampleo
                 "sample_every_n_steps": ("INT", {"default": 0, "min": 0, "step": 50, "tooltip": "Generate a sample every n steps."}),
                 "sample_every_n_epochs": ("INT", {"default": 0, "min": 0, "step": 1, "tooltip": "Generate a sample every n epoch."}),
                 "sample_at_first": ("BOOLEAN", {"default": True, "tooltip": "Genera a sample at the starting training."}),
                 
-                # Modelos necesarios para el sampleo. El usuario debe seleccionarlos aquí.
+                # Modelos necesarios para el sampleo. El usuario debe seleccionarlos aquï¿½.
                 "vae_name": (vaes_combo, {"tooltip": "The same vae used to caching"}),
                 "t5_name": (encoders_combo, {"tooltip": "The same T5 used to caching"}),
                 "clip_name": (clip_vision_files, {"default": "None", "tooltip": "If I2V, the same clip vision used for caching"}),
@@ -156,10 +159,10 @@ class MusubiSamplingSettings:
         settings = {}
 
         # 1. Comprobar si el usuario realmente quiere generar muestras.
-        # Si el texto de los prompts está vacío, no hacemos nada.
+        # Si el texto de los prompts estï¿½ vacï¿½o, no hacemos nada.
         if not prompts_text or not prompts_text.strip():
             print(f"{node_name_print} No prompts provided. Skipping sample generation setup.")
-            return ({},) # Devolvemos un diccionario vacío.
+            return ({},) # Devolvemos un diccionario vacï¿½o.
 
         # 2. Crear el archivo de prompts temporal a partir del texto del nodo.
         try:
@@ -169,7 +172,7 @@ class MusubiSamplingSettings:
             prompts_dir = os.path.join(temp_dir, "musubi_tuner_prompts")
             os.makedirs(prompts_dir, exist_ok=True)
 
-            # Creamos un nombre de archivo único usando la fecha y hora.
+            # Creamos un nombre de archivo ï¿½nico usando la fecha y hora.
             timestamp = time.strftime("%Y%m%d-%H%M%S")
             prompt_filename = f"prompts_{timestamp}.txt"
             prompt_filepath = os.path.join(prompts_dir, prompt_filename)
@@ -180,21 +183,21 @@ class MusubiSamplingSettings:
             
             print(f"{node_name_print} Successfully created temporary prompt file at: {prompt_filepath}")
             
-            # Añadimos la ruta del archivo a los ajustes que pasaremos al trainer.
+            # Aï¿½adimos la ruta del archivo a los ajustes que pasaremos al trainer.
             settings["sample_prompts"] = prompt_filepath
 
         except Exception as e:
             print(f"{node_name_print} ERROR creating temporary prompt file: {e}")
             traceback.print_exc()
-            return ({},) # Devolvemos un diccionario vacío en caso de error.
+            return ({},) # Devolvemos un diccionario vacï¿½o en caso de error.
 
-        # 3. Añadir el resto de parámetros al diccionario de ajustes.
+        # 3. Aï¿½adir el resto de parï¿½metros al diccionario de ajustes.
         settings["sample_every_n_steps"] = sample_every_n_steps
         settings["sample_every_n_epochs"] = sample_every_n_epochs
         settings["sample_at_first"] = sample_at_first
         
 
-        # 4. Obtener las rutas completas de los modelos y añadirlas.
+        # 4. Obtener las rutas completas de los modelos y aï¿½adirlas.
         # El script de entrenamiento necesita las rutas absolutas, no solo los nombres.
         if vae_name:
             settings["vae"] = folder_paths.get_full_path("vae", vae_name)
@@ -208,7 +211,7 @@ class MusubiSamplingSettings:
         print(f"{node_name_print} Generated sampling settings: {settings}")
         return (settings,)
 
-# Mapeos para ComfyUI - ¡ASEGÚRATE DE QUE ESTA SECCIÓN ESTÉ AL FINAL DEL ARCHIVO!
+# Mapeos para ComfyUI - ï¿½ASEGï¿½RATE DE QUE ESTA SECCIï¿½N ESTï¿½ AL FINAL DEL ARCHIVO!
 # Combina los mapeos de ambas clases
 NODE_CLASS_MAPPINGS = {
     "MusubiCompileSettings": MusubiCompileSettings,
